@@ -5,12 +5,14 @@ import (
 	"time"
 )
 
-type ID int64
+type ID uint64
 
 type User struct {
-	ID        ID
-	Email     string `gorm:"uniqueIndex"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt sql.NullTime
+	ID             ID
+	Service        string `gorm:"uniqueIndex:idx_user"`
+	Email          string `gorm:"uniqueIndex:idx_user"`
+	HashedPassword string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      sql.NullTime
 }

@@ -6,16 +6,22 @@ import (
 	"auth-service/internal/service"
 	"github.com/gin-gonic/gin"
 	"log"
+	"os"
 )
 
 func main() {
-
 	db, err := driver.NewPostgresGorm()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	userService := service.NewUserService(db)
+	jwtSecret, ok := os.LookupEnv("JWT_SECRET")
+	if !ok {
+		log.Fatal("env JWT_SECRET not assigned")
+	}
+
+	jwtService := service.NewJWTService(jwtSecret)
+	userService := service.NewUserService(db, jwtService)
 
 	r := gin.Default()
 

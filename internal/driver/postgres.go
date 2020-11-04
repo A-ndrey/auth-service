@@ -22,6 +22,7 @@ func NewPostgresGorm() (*gorm.DB, error) {
 	if !ok {
 		return nil, errors.New("env POSTGRES_DB not assigned")
 	}
+
 	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=127.0.0.1", user, password, dbname)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

@@ -1,14 +1,12 @@
 package handler
 
 import (
+	"auth-service/internal/controller/presenter"
 	"auth-service/internal/service"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 )
-
-type ErrorMessage struct {
-	Error string `json:"error"`
-}
 
 var userService service.UserService
 
@@ -20,23 +18,35 @@ func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 
 func newUser(ctx *gin.Context) {
 	var user struct {
-		Email string `json:"email"`
+		Service  string `json:"service"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	if ctx.ShouldBindJSON(&user) != nil {
-		ctx.JSON(http.StatusBadRequest, ErrorMessage{"wrong json format"})
+		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: "wrong json format"})
+		return
+	}
+
+	if user.Password == "" {
+		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: "miss password"})
 		return
 	}
 
 	if !userService.IsValidEmail(user.Email) {
-		ctx.JSON(http.StatusBadRequest, ErrorMessage{"email is invalid"})
+		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: "email is invalid"})
 		return
 	}
 
-	if err := userService.RegisterUser(user.Email); err != nil {
-		ctx.JSON(http.StatusBadRequest, ErrorMessage{err.Error()})
+	token, err := userService.RegisterUser(user.Service, user.Email, user.Password)
+	if err == service.ErrExistsEmail {
+		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: service.ErrExistsEmail.Error()})
+		return
+	} else if err != nil {
+		log.Println(err)
+		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusCreated)
+	ctx.JSON(http.StatusCreated, presenter.NewUserResponse{Token: token})
 }
