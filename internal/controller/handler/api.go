@@ -16,6 +16,7 @@ func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 	apiGroup := group.Group("/api/v1")
 	apiGroup.POST("/signup", signUp)
 	apiGroup.POST("/signin", signIn)
+	apiGroup.GET("/user", userInfo)
 }
 
 func signUp(ctx *gin.Context) {
@@ -64,6 +65,7 @@ func signIn(ctx *gin.Context) {
 	accessToken, refreshToken, err := userService.Login(user.Service, user.Email, user.Password, device)
 	if errors.Is(err, service.ErrIncorrectEmailOrPassword) {
 		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: err.Error()})
+		return
 	} else if err != nil {
 		log.Println(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -71,4 +73,28 @@ func signIn(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, presenter.TokenPairResponse{AccessToken: accessToken, RefreshToken: refreshToken})
+}
+
+func userInfo(ctx *gin.Context) {
+	defineUser := presenter.DefineUserRequest{}
+
+	if ctx.ShouldBindJSON(&defineUser) != nil {
+		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: "wrong json format"})
+		return
+	}
+
+	email, expiresAt, err := userService.GetUserInfo(defineUser.Service, defineUser.AccessToken)
+	if errors.Is(err, service.ErrTokenExpired) {
+		ctx.JSON(http.StatusForbidden, presenter.ErrorResponse{Error: err.Error()})
+		return
+	} else if errors.Is(err, service.ErrUserNotFound) {
+		ctx.JSON(http.StatusNotFound, presenter.ErrorResponse{Error: err.Error()})
+		return
+	} else if err != nil {
+		log.Println(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, presenter.DefineUserResponse{Email: email, TokenExpiresAt: expiresAt})
 }

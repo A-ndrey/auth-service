@@ -10,3 +10,13 @@ type TokenPairResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+type DefineUserRequest struct {
+	Service     string `json:"service"`
+	AccessToken string `json:"access_token"`
+}
+
+type DefineUserResponse struct {
+	Email          string `json:"email"`
+	TokenExpiresAt int64  `json:"token_expires_at"`
+}

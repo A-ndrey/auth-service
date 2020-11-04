@@ -14,6 +14,7 @@ type UserService interface {
 	IsValidEmail(email string) bool
 	RegisterUser(service, email, password, device string) (string, string, error)
 	Login(service, email, password, device string) (string, string, error)
+	GetUserInfo(service, token string) (string, int64, error)
 }
 
 type userService struct {
@@ -26,6 +27,7 @@ var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z
 var (
 	ErrExistsEmail              = errors.New("email already exists")
 	ErrIncorrectEmailOrPassword = errors.New("incorrect email or password")
+	ErrUserNotFound             = errors.New("user not found")
 )
 
 func NewUserService(db *gorm.DB, jwtService JWTService, sessionService SessionService) UserService {
@@ -114,6 +116,23 @@ func (u *userService) Login(service, email, password, device string) (string, st
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+func (u *userService) GetUserInfo(service, token string) (string, int64, error) {
+	userID, expiresAt, err := u.jwtService.GetUserIDAndExpiresAt(token)
+	if err != nil {
+		return "", 0, err
+	}
+
+	user := domain.User{ID: userID, Service: service}
+	result := u.db.Find(&user, &user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return "", 0, ErrUserNotFound
+	} else if result.Error != nil {
+		return "", 0, result.Error
+	}
+
+	return user.Email, expiresAt, nil
 }
 
 func HashPassword(password string) (string, error) {

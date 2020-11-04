@@ -10,7 +10,7 @@ import (
 
 type JWTService interface {
 	NewToken(userID domain.UserID) (string, error)
-	CheckToken(token string, userID domain.UserID) error
+	GetUserIDAndExpiresAt(token string) (domain.UserID, int64, error)
 }
 
 type jwtService struct {
@@ -23,6 +23,10 @@ type UserClaims struct {
 }
 
 const tokenDuration = 30 * time.Minute
+
+var (
+	ErrTokenExpired = errors.New("token expired")
+)
 
 func NewJWTService(secret string) JWTService {
 	return &jwtService{secret: secret}
@@ -41,26 +45,24 @@ func (j *jwtService) NewToken(userID domain.UserID) (string, error) {
 	return token.SignedString([]byte(j.secret))
 }
 
-func (j *jwtService) CheckToken(tokenString string, userID domain.UserID) error {
+func (j *jwtService) GetUserIDAndExpiresAt(tokenString string) (domain.UserID, int64, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return j.secret, nil
+		return []byte(j.secret), nil
 	})
-	if err != nil {
-		return err
+	if e, ok := err.(*jwt.ValidationError); ok && e.Errors&jwt.ValidationErrorExpired != 0 {
+		return 0, 0, ErrTokenExpired
+	} else if err != nil {
+		return 0, 0, err
 	}
 
 	claims, ok := token.Claims.(*UserClaims)
-	if !ok || !token.Valid {
-		return errors.New("invalid token")
+	if !ok {
+		return 0, 0, errors.New("invalid token")
 	}
 
-	if claims.UserID != userID {
-		return errors.New("token doesn't correspond userID")
-	}
-
-	return nil
+	return claims.UserID, claims.ExpiresAt, nil
 }
