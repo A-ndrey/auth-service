@@ -2,6 +2,7 @@ package service
 
 import (
 	"auth-service/internal/domain"
+	"errors"
 	"gorm.io/gorm"
 	"math/rand"
 	"strings"
@@ -21,7 +22,7 @@ type sessionService struct {
 
 const (
 	charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~=+%^*/()[]{}/!@#$?|"
-	length  = 10
+	length  = 20
 )
 
 func NewSessionService(db *gorm.DB) SessionService {
@@ -39,19 +40,24 @@ func (s *sessionService) GetActiveSessions(userID domain.UserID) ([]domain.Sessi
 }
 
 func (s *sessionService) NewSession(userID domain.UserID, device string) (string, error) {
-	token := GenerateToken()
 	session := domain.Session{
-		UserID:       userID,
-		Device:       device,
-		RefreshToken: token,
+		UserID: userID,
+		Device: device,
 	}
 
-	result := s.db.Save(&session)
+	result := s.db.Find(&session, &session)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return "", result.Error
+	}
+
+	session.RefreshToken = GenerateToken()
+
+	result = s.db.Save(&session)
 	if result.Error != nil {
 		return "", result.Error
 	}
 
-	return token, nil
+	return session.RefreshToken, nil
 }
 
 func (s *sessionService) CheckAndUpdateToken(userID domain.UserID, token string) (string, error) {

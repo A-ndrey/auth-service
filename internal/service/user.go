@@ -13,6 +13,7 @@ import (
 type UserService interface {
 	IsValidEmail(email string) bool
 	RegisterUser(service, email, password, device string) (string, string, error)
+	Login(service, email, password, device string) (string, string, error)
 }
 
 type userService struct {
@@ -23,7 +24,8 @@ type userService struct {
 
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 var (
-	ErrExistsEmail = errors.New("email already exists")
+	ErrExistsEmail              = errors.New("email already exists")
+	ErrIncorrectEmailOrPassword = errors.New("incorrect email or password")
 )
 
 func NewUserService(db *gorm.DB, jwtService JWTService, sessionService SessionService) UserService {
@@ -60,14 +62,50 @@ func (u *userService) RegisterUser(service, email, password, device string) (str
 
 	user.HashedPassword = hashedPassword
 
-	accessToken, err := u.jwtService.NewToken(service, email)
+	var accessToken, refreshToken string
+
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		result = u.db.Create(&user)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		accessToken, err = u.jwtService.NewToken(user.ID)
+		if err != nil {
+			return err
+		}
+
+		refreshToken, err = u.sessionService.NewSession(user.ID, device)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return "", "", err
 	}
 
-	result = u.db.Create(&user)
-	if result.Error != nil {
+	return accessToken, refreshToken, nil
+}
+
+func (u *userService) Login(service, email, password, device string) (string, string, error) {
+	user := domain.User{Service: service, Email: email}
+
+	result := u.db.First(&user, &user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return "", "", ErrIncorrectEmailOrPassword
+	} else if result.Error != nil {
 		return "", "", result.Error
+	}
+
+	if !IsCorrectPassword(password, user.HashedPassword) {
+		return "", "", ErrIncorrectEmailOrPassword
+	}
+
+	accessToken, err := u.jwtService.NewToken(user.ID)
+	if err != nil {
+		return "", "", err
 	}
 
 	refreshToken, err := u.sessionService.NewSession(user.ID, device)
@@ -83,7 +121,7 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
-func CheckPasswordHash(password, hash string) bool {
+func IsCorrectPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }

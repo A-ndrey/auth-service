@@ -1,6 +1,7 @@
 package service
 
 import (
+	"auth-service/internal/domain"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
@@ -8,8 +9,8 @@ import (
 )
 
 type JWTService interface {
-	NewToken(service, email string) (string, error)
-	CheckToken(token string, service, email string) error
+	NewToken(userID domain.UserID) (string, error)
+	CheckToken(token string, userID domain.UserID) error
 }
 
 type jwtService struct {
@@ -17,8 +18,7 @@ type jwtService struct {
 }
 
 type UserClaims struct {
-	Service string
-	Email   string
+	UserID domain.UserID
 	jwt.StandardClaims
 }
 
@@ -28,10 +28,9 @@ func NewJWTService(secret string) JWTService {
 	return &jwtService{secret: secret}
 }
 
-func (j *jwtService) NewToken(service, email string) (string, error) {
+func (j *jwtService) NewToken(userID domain.UserID) (string, error) {
 	claims := UserClaims{
-		Service: service,
-		Email:   email,
+		UserID: userID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(tokenDuration).Unix(),
 		},
@@ -42,7 +41,7 @@ func (j *jwtService) NewToken(service, email string) (string, error) {
 	return token.SignedString([]byte(j.secret))
 }
 
-func (j *jwtService) CheckToken(tokenString string, service, email string) error {
+func (j *jwtService) CheckToken(tokenString string, userID domain.UserID) error {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -59,8 +58,8 @@ func (j *jwtService) CheckToken(tokenString string, service, email string) error
 		return errors.New("invalid token")
 	}
 
-	if claims.Service != service || claims.Email != email {
-		return errors.New("token doesn't correspond user")
+	if claims.UserID != userID {
+		return errors.New("token doesn't correspond userID")
 	}
 
 	return nil
