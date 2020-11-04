@@ -12,12 +12,13 @@ import (
 
 type UserService interface {
 	IsValidEmail(email string) bool
-	RegisterUser(service, email, password string) (string, error)
+	RegisterUser(service, email, password, device string) (string, string, error)
 }
 
 type userService struct {
-	db         *gorm.DB
-	jwtService JWTService
+	db             *gorm.DB
+	jwtService     JWTService
+	sessionService SessionService
 }
 
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
@@ -25,8 +26,8 @@ var (
 	ErrExistsEmail = errors.New("email already exists")
 )
 
-func NewUserService(db *gorm.DB, jwtService JWTService) UserService {
-	return &userService{db: db, jwtService: jwtService}
+func NewUserService(db *gorm.DB, jwtService JWTService, sessionService SessionService) UserService {
+	return &userService{db: db, jwtService: jwtService, sessionService: sessionService}
 }
 
 func (u *userService) IsValidEmail(email string) bool {
@@ -44,32 +45,37 @@ func (u *userService) IsValidEmail(email string) bool {
 	return true
 }
 
-func (u *userService) RegisterUser(service, email, password string) (string, error) {
+func (u *userService) RegisterUser(service, email, password, device string) (string, string, error) {
 	user := domain.User{Service: service, Email: email}
 
-	result := u.db.Where(&user).First(&domain.User{})
+	result := u.db.First(&domain.User{}, &user)
 	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return "", ErrExistsEmail
+		return "", "", ErrExistsEmail
 	}
 
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	user.HashedPassword = hashedPassword
 
-	token, err := u.jwtService.NewToken(service, email)
+	accessToken, err := u.jwtService.NewToken(service, email)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	result = u.db.Create(&user)
 	if result.Error != nil {
-		return "", result.Error
+		return "", "", result.Error
 	}
 
-	return token, nil
+	refreshToken, err := u.sessionService.NewSession(user.ID, device)
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }
 
 func HashPassword(password string) (string, error) {

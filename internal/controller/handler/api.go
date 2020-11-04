@@ -38,7 +38,9 @@ func newUser(ctx *gin.Context) {
 		return
 	}
 
-	token, err := userService.RegisterUser(user.Service, user.Email, user.Password)
+	device := ctx.GetHeader("User-Agent")
+
+	accessToken, refreshToken, err := userService.RegisterUser(user.Service, user.Email, user.Password, device)
 	if err == service.ErrExistsEmail {
 		ctx.JSON(http.StatusBadRequest, presenter.ErrorResponse{Error: service.ErrExistsEmail.Error()})
 		return
@@ -48,5 +50,5 @@ func newUser(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, presenter.NewUserResponse{Token: token})
+	ctx.JSON(http.StatusCreated, presenter.NewUserResponse{AccessToken: accessToken, RefreshToken: refreshToken})
 }

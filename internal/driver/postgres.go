@@ -29,7 +29,7 @@ func NewPostgresGorm() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&domain.User{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Session{}); err != nil {
 		return nil, err
 	}
 

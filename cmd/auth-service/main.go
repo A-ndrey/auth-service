@@ -21,7 +21,8 @@ func main() {
 	}
 
 	jwtService := service.NewJWTService(jwtSecret)
-	userService := service.NewUserService(db, jwtService)
+	sessionService := service.NewSessionService(db)
+	userService := service.NewUserService(db, jwtService, sessionService)
 
 	r := gin.Default()
 
