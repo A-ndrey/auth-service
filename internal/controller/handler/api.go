@@ -16,7 +16,7 @@ func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 	apiGroup.POST("/signin", signIn(service))
 	apiGroup.GET("/user", userInfo(service))
 	apiGroup.PUT("/refresh", refreshToken(service))
-	apiGroup.GET("/password/check", checkPassword)
+	apiGroup.POST("/password/check", checkPassword)
 }
 
 func signUp(userService service.UserService) gin.HandlerFunc {
