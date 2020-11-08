@@ -25,6 +25,10 @@ const (
 	length  = 20
 )
 
+var (
+	ErrWrongRefreshToken = errors.New("wrong refresh token")
+)
+
 func NewSessionService(db *gorm.DB) SessionService {
 	return &sessionService{db: db}
 }
@@ -67,7 +71,9 @@ func (s *sessionService) CheckAndUpdateToken(userID domain.UserID, token string)
 	}
 
 	result := s.db.Find(&session, &session)
-	if result.Error != nil {
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return "", ErrWrongRefreshToken
+	} else if result.Error != nil {
 		return "", result.Error
 	}
 

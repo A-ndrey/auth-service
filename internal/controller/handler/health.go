@@ -7,11 +7,9 @@ import (
 
 func RouteHealth(group *gin.RouterGroup) {
 	healthGroup := group.Group("/health")
-	ping(healthGroup)
+	healthGroup.GET("/ping", ping)
 }
 
-func ping(group *gin.RouterGroup) {
-	group.GET("/ping", func(context *gin.Context) {
-		context.Status(http.StatusOK)
-	})
+func ping(ctx *gin.Context) {
+	ctx.Status(http.StatusOK)
 }

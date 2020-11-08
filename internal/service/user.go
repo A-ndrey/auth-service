@@ -15,6 +15,7 @@ type UserService interface {
 	RegisterUser(service, email, password, device string) (string, string, error)
 	Login(service, email, password, device string) (string, string, error)
 	GetUserInfo(service, token string) (string, int64, error)
+	RefreshTokens(accessToken, refreshToken string) (string, string, error)
 }
 
 type userService struct {
@@ -133,6 +134,25 @@ func (u *userService) GetUserInfo(service, token string) (string, int64, error) 
 	}
 
 	return user.Email, expiresAt, nil
+}
+
+func (u *userService) RefreshTokens(accessToken, refreshToken string) (string, string, error) {
+	userID, _, err := u.jwtService.GetUserIDAndExpiresAt(accessToken)
+	if !errors.Is(err, ErrTokenExpired) && err != nil {
+		return "", "", err
+	}
+
+	newAccessToken, err := u.jwtService.NewToken(userID)
+	if err != nil {
+		return "", "", err
+	}
+
+	newRefreshToken, err := u.sessionService.CheckAndUpdateToken(userID, refreshToken)
+	if err != nil {
+		return "", "", err
+	}
+
+	return newAccessToken, newRefreshToken, nil
 }
 
 func HashPassword(password string) (string, error) {

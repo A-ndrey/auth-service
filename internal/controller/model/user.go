@@ -1,9 +1,14 @@
-package presenter
+package model
 
 type UserRequest struct {
 	Service  string `json:"service"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type TokenPairRequest struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type TokenPairResponse struct {
