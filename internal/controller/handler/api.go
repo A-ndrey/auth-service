@@ -5,6 +5,7 @@ import (
 	"auth-service/internal/service"
 	"errors"
 	"github.com/gin-gonic/gin"
+	passwordvalidator "github.com/lane-c-wagner/go-password-validator"
 	"log"
 	"net/http"
 )
@@ -15,9 +16,10 @@ func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 	apiGroup.POST("/signin", signIn(service))
 	apiGroup.GET("/user", userInfo(service))
 	apiGroup.PUT("/refresh", refreshToken(service))
+	apiGroup.GET("/password/check", checkPassword)
 }
 
-func signUp(userService service.UserService) func(ctx *gin.Context) {
+func signUp(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		user := model.UserRequest{}
 
@@ -51,7 +53,7 @@ func signUp(userService service.UserService) func(ctx *gin.Context) {
 	}
 }
 
-func signIn(userService service.UserService) func(ctx *gin.Context) {
+func signIn(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		user := model.UserRequest{}
 
@@ -75,7 +77,7 @@ func signIn(userService service.UserService) func(ctx *gin.Context) {
 	}
 }
 
-func userInfo(userService service.UserService) func(ctx *gin.Context) {
+func userInfo(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defineUser := model.DefineUserRequest{}
 
@@ -100,7 +102,7 @@ func userInfo(userService service.UserService) func(ctx *gin.Context) {
 	}
 }
 
-func refreshToken(userService service.UserService) func(ctx *gin.Context) {
+func refreshToken(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		tokenPair := model.TokenPairRequest{}
 
@@ -120,4 +122,34 @@ func refreshToken(userService service.UserService) func(ctx *gin.Context) {
 
 		ctx.JSON(http.StatusOK, model.TokenPairResponse{AccessToken: accessToken, RefreshToken: refreshToken})
 	}
+}
+
+func checkPassword(ctx *gin.Context) {
+	request := model.PasswordCheckRequest{}
+
+	if ctx.BindJSON(&request) != nil {
+		return
+	}
+
+	response := model.PasswordCheckResponse{}
+
+	entropy := passwordvalidator.GetEntropy(request.Password)
+	if entropy < 40 {
+		response.Strength = model.PasswordVeryWeak
+	} else if entropy < 50 {
+		response.Strength = model.PasswordWeak
+	} else if entropy < 60 {
+		response.Strength = model.PasswordMedium
+	} else if entropy < 70 {
+		response.Strength = model.PasswordStrong
+	} else {
+		response.Strength = model.PasswordVeryStrong
+	}
+
+	err := passwordvalidator.Validate(request.Password, 60)
+	if err != nil {
+		response.Recommendation = err.Error()
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
