@@ -24,9 +24,16 @@ func main() {
 	sessionService := service.NewSessionService(db)
 	userService := service.NewUserService(db, jwtService, sessionService)
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	healthService := service.NewHealthService(sqlDB)
+
 	r := gin.Default()
 
-	handler.RouteHealth(&r.RouterGroup)
+	handler.RouteHealth(&r.RouterGroup, healthService)
 	handler.RouteAPI(&r.RouterGroup, userService)
 
 	if err := r.Run(); err != nil {
