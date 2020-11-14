@@ -131,7 +131,7 @@ func checkPassword(ctx *gin.Context) {
 		return
 	}
 
-	response := model.PasswordCheckResponse{}
+	response := model.PasswordCheckResponse{MinStrength: model.PasswordVeryWeak, MaxStrength: model.PasswordVeryStrong}
 
 	entropy := passwordvalidator.GetEntropy(request.Password)
 	if entropy < 40 {

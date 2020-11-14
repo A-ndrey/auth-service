@@ -1,11 +1,11 @@
 package model
 
 const (
-	PasswordVeryWeak   = "very weak"
-	PasswordWeak       = "weak"
-	PasswordMedium     = "medium"
-	PasswordStrong     = "strong"
-	PasswordVeryStrong = "very strong"
+	PasswordVeryWeak = iota
+	PasswordWeak
+	PasswordMedium
+	PasswordStrong
+	PasswordVeryStrong
 )
 
 type PasswordCheckRequest struct {
@@ -13,6 +13,8 @@ type PasswordCheckRequest struct {
 }
 
 type PasswordCheckResponse struct {
-	Strength       string `json:"strength"`
+	Strength       int    `json:"strength"`
+	MaxStrength    int    `json:"max_strength"`
+	MinStrength    int    `json:"min_strength"`
 	Recommendation string `json:"recommendation,omitempty"`
 }
