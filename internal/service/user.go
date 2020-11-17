@@ -15,7 +15,7 @@ type UserService interface {
 	RegisterUser(service, email, password, device string) (string, string, error)
 	Login(service, email, password, device string) (string, string, error)
 	GetUserInfo(service, token string) (string, int64, error)
-	RefreshTokens(accessToken, refreshToken string) (string, string, error)
+	RefreshTokens(refreshToken string) (string, string, error)
 }
 
 type userService struct {
@@ -126,7 +126,7 @@ func (u *userService) GetUserInfo(service, token string) (string, int64, error) 
 	}
 
 	user := domain.User{ID: userID, Service: service}
-	result := u.db.Find(&user, &user)
+	result := u.db.First(&user, &user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return "", 0, ErrUserNotFound
 	} else if result.Error != nil {
@@ -136,18 +136,18 @@ func (u *userService) GetUserInfo(service, token string) (string, int64, error) 
 	return user.Email, expiresAt, nil
 }
 
-func (u *userService) RefreshTokens(accessToken, refreshToken string) (string, string, error) {
-	userID, _, err := u.jwtService.GetUserIDAndExpiresAt(accessToken)
-	if !errors.Is(err, ErrTokenExpired) && err != nil {
-		return "", "", err
-	}
-
-	newAccessToken, err := u.jwtService.NewToken(userID)
+func (u *userService) RefreshTokens(refreshToken string) (string, string, error) {
+	session, err := u.sessionService.GetSession(refreshToken)
 	if err != nil {
 		return "", "", err
 	}
 
-	newRefreshToken, err := u.sessionService.CheckAndUpdateToken(userID, refreshToken)
+	newAccessToken, err := u.jwtService.NewToken(session.UserID)
+	if err != nil {
+		return "", "", err
+	}
+
+	newRefreshToken, err := u.sessionService.UpdateToken(refreshToken)
 	if err != nil {
 		return "", "", err
 	}

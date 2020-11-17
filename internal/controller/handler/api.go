@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"auth-service/internal/controller/middleware"
 	"auth-service/internal/controller/model"
 	"auth-service/internal/service"
 	"errors"
@@ -8,15 +9,20 @@ import (
 	passwordvalidator "github.com/lane-c-wagner/go-password-validator"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 	apiGroup := group.Group("/api/v1")
-	apiGroup.POST("/signup", signUp(service))
-	apiGroup.POST("/signin", signIn(service))
-	apiGroup.GET("/user", userInfo(service))
-	apiGroup.PUT("/refresh", refreshToken(service))
+
 	apiGroup.POST("/password/check", checkPassword)
+	apiGroup.PUT("/refresh", refreshToken(service))
+
+	srvcDefGroup := apiGroup.Use(middleware.ServiceDefiner)
+
+	srvcDefGroup.POST("/signup", signUp(service))
+	srvcDefGroup.POST("/signin", signIn(service))
+	srvcDefGroup.GET("/user", userInfo(service))
 }
 
 func signUp(userService service.UserService) gin.HandlerFunc {
@@ -37,9 +43,10 @@ func signUp(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		serviceQuery := ctx.GetString(middleware.ServiceKey)
 		device := ctx.GetHeader("User-Agent")
 
-		accessToken, refreshToken, err := userService.RegisterUser(user.Service, user.Email, user.Password, device)
+		accessToken, refreshToken, err := userService.RegisterUser(serviceQuery, user.Email, user.Password, device)
 		if errors.Is(err, service.ErrExistsEmail) {
 			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
 			return
@@ -61,9 +68,10 @@ func signIn(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		serviceQuery := ctx.GetString(middleware.ServiceKey)
 		device := ctx.GetHeader("User-Agent")
 
-		accessToken, refreshToken, err := userService.Login(user.Service, user.Email, user.Password, device)
+		accessToken, refreshToken, err := userService.Login(serviceQuery, user.Email, user.Password, device)
 		if errors.Is(err, service.ErrIncorrectEmailOrPassword) {
 			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
 			return
@@ -79,15 +87,18 @@ func signIn(userService service.UserService) gin.HandlerFunc {
 
 func userInfo(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		defineUser := model.DefineUserRequest{}
-
-		if ctx.BindJSON(&defineUser) != nil {
+		authHeader := ctx.GetHeader("Authorization")
+		accessToken, err := getToken(authHeader)
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
 			return
 		}
 
-		email, expiresAt, err := userService.GetUserInfo(defineUser.Service, defineUser.AccessToken)
+		serviceQuery := ctx.GetString(middleware.ServiceKey)
+
+		email, expiresAt, err := userService.GetUserInfo(serviceQuery, accessToken)
 		if errors.Is(err, service.ErrTokenExpired) {
-			ctx.JSON(http.StatusForbidden, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
 			return
 		} else if errors.Is(err, service.ErrUserNotFound) {
 			ctx.JSON(http.StatusNotFound, model.ErrorResponse{Error: err.Error()})
@@ -104,15 +115,15 @@ func userInfo(userService service.UserService) gin.HandlerFunc {
 
 func refreshToken(userService service.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		tokenPair := model.TokenPairRequest{}
+		refreshRequest := model.RefreshRequest{}
 
-		if ctx.BindJSON(&tokenPair) != nil {
+		if ctx.BindJSON(&refreshRequest) != nil {
 			return
 		}
 
-		accessToken, refreshToken, err := userService.RefreshTokens(tokenPair.AccessToken, tokenPair.RefreshToken)
+		accessToken, refreshToken, err := userService.RefreshTokens(refreshRequest.RefreshToken)
 		if errors.Is(err, service.ErrWrongRefreshToken) {
-			ctx.JSON(http.StatusForbidden, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
 			return
 		} else if err != nil {
 			log.Println(err)
@@ -152,4 +163,17 @@ func checkPassword(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, response)
+}
+
+func getToken(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", errors.New("no 'Authorization' header")
+	}
+
+	prefix := "Bearer "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", errors.New("no 'Bearer' prefix")
+	}
+
+	return authHeader[len(prefix):], nil
 }

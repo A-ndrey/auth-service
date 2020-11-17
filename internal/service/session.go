@@ -12,7 +12,8 @@ import (
 type SessionService interface {
 	GetActiveSessions(userID domain.UserID) ([]domain.Session, error)
 	NewSession(userID domain.UserID, device string) (string, error)
-	CheckAndUpdateToken(userID domain.UserID, token string) (string, error)
+	GetSession(token string) (domain.Session, error)
+	UpdateToken(token string) (string, error)
 	DeleteSession(userID domain.UserID, device string) error
 }
 
@@ -35,7 +36,7 @@ func NewSessionService(db *gorm.DB) SessionService {
 
 func (s *sessionService) GetActiveSessions(userID domain.UserID) ([]domain.Session, error) {
 	var sessions []domain.Session
-	result := s.db.Find(&sessions, &domain.Session{UserID: userID})
+	result := s.db.First(&sessions, &domain.Session{UserID: userID})
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -49,7 +50,7 @@ func (s *sessionService) NewSession(userID domain.UserID, device string) (string
 		Device: device,
 	}
 
-	result := s.db.Find(&session, &session)
+	result := s.db.First(&session, &session)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return "", result.Error
 	}
@@ -64,22 +65,30 @@ func (s *sessionService) NewSession(userID domain.UserID, device string) (string
 	return session.RefreshToken, nil
 }
 
-func (s *sessionService) CheckAndUpdateToken(userID domain.UserID, token string) (string, error) {
+func (s *sessionService) GetSession(token string) (domain.Session, error) {
 	session := domain.Session{
-		UserID:       userID,
 		RefreshToken: token,
 	}
 
-	result := s.db.Find(&session, &session)
+	result := s.db.First(&session, &session)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return "", ErrWrongRefreshToken
+		return domain.Session{}, ErrWrongRefreshToken
 	} else if result.Error != nil {
-		return "", result.Error
+		return domain.Session{}, result.Error
+	}
+
+	return session, nil
+}
+
+func (s *sessionService) UpdateToken(token string) (string, error) {
+	session, err := s.GetSession(token)
+	if err != nil {
+		return "", err
 	}
 
 	session.RefreshToken = GenerateToken()
 
-	result = s.db.Save(&session)
+	result := s.db.Save(&session)
 	if result.Error != nil {
 		return "", result.Error
 	}
