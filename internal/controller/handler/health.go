@@ -9,7 +9,7 @@ import (
 
 func RouteHealth(group *gin.RouterGroup, service service.HealthService) {
 	healthGroup := group.Group("/health")
-	healthGroup.GET("/", status(service))
+	healthGroup.GET("/status", status(service))
 	healthGroup.GET("/ping", ping)
 }
 

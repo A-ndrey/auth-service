@@ -9,8 +9,8 @@ import (
 const ServiceKey = "service"
 
 func ServiceDefiner(ctx *gin.Context) {
-	serviceQuery, ok := ctx.GetQuery(ServiceKey)
-	if !ok {
+	serviceQuery, _ := ctx.GetQuery(ServiceKey)
+	if serviceQuery == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ErrorResponse{Error: "empty 'service' query"})
 		return
 	}
