@@ -9,6 +9,8 @@ import (
 	"os"
 )
 
+const schemaName = "auth_service"
+
 func NewPostgresGorm() (*gorm.DB, error) {
 	user, ok := os.LookupEnv("POSTGRES_USER")
 	if !ok {
@@ -30,11 +32,22 @@ func NewPostgresGorm() (*gorm.DB, error) {
 		return nil, errors.New("env POSTGRES_HOST not assigned")
 	}
 
+	config := gorm.Config{
+		//todo uncomment when gorm.io/driver/postgres releases version after v1.0.5
+		//NamingStrategy: schema.NamingStrategy{ TablePrefix: schemaName + "."},
+	}
+
 	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=%s", user, password, dbname, dbHost)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &config)
 	if err != nil {
 		return nil, err
 	}
+
+	//todo uncomment when gorm.io/driver/postgres releases version after v1.0.5
+	//result := db.Exec("create schema if not exists " + schemaName)
+	//if result.Error != nil {
+	//	return nil, result.Error
+	//}
 
 	if err := db.AutoMigrate(&domain.User{}, &domain.Session{}); err != nil {
 		return nil, err

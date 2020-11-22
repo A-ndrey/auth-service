@@ -55,7 +55,11 @@ func (u *userService) RegisterUser(service, email, password, device string) (str
 
 	result := u.db.First(&domain.User{}, &user)
 	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return "", "", ErrExistsEmail
+		if result.Error == nil {
+			return "", "", ErrExistsEmail
+		} else {
+			return "", "", result.Error
+		}
 	}
 
 	hashedPassword, err := HashPassword(password)
