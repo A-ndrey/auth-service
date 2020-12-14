@@ -38,8 +38,11 @@ func main() {
 
 	r := gin.Default()
 
+	r.LoadHTMLFiles("front/index.html")
+
 	handler.RouteHealth(&r.RouterGroup, healthService)
 	handler.RouteAPI(&r.RouterGroup, userService)
+	handler.RouteFront(&r.RouterGroup)
 
 	srv := &http.Server{
 		Addr:    ":8080",
