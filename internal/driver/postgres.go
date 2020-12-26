@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 	"os"
 )
 
@@ -33,8 +34,7 @@ func NewPostgresGorm() (*gorm.DB, error) {
 	}
 
 	config := gorm.Config{
-		//todo uncomment when gorm.io/driver/postgres releases version after v1.0.5
-		//NamingStrategy: schema.NamingStrategy{ TablePrefix: schemaName + "."},
+		NamingStrategy: schema.NamingStrategy{TablePrefix: schemaName + "."},
 	}
 
 	dsn := fmt.Sprintf("user=%s password=%s dbname=%s host=%s", user, password, dbname, dbHost)
@@ -43,11 +43,10 @@ func NewPostgresGorm() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	//todo uncomment when gorm.io/driver/postgres releases version after v1.0.5
-	//result := db.Exec("create schema if not exists " + schemaName)
-	//if result.Error != nil {
-	//	return nil, result.Error
-	//}
+	result := db.Exec("create schema if not exists " + schemaName)
+	if result.Error != nil {
+		return nil, result.Error
+	}
 
 	if err := db.AutoMigrate(&domain.User{}, &domain.Session{}); err != nil {
 		return nil, err
