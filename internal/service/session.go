@@ -66,6 +66,10 @@ func (s *sessionService) NewSession(userID domain.UserID, device string) (string
 }
 
 func (s *sessionService) GetSession(token string) (domain.Session, error) {
+	if token == "" {
+		return domain.Session{}, ErrWrongRefreshToken
+	}
+
 	session := domain.Session{
 		RefreshToken: token,
 	}

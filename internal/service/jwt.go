@@ -26,6 +26,7 @@ const tokenDuration = 30 * time.Minute
 
 var (
 	ErrTokenExpired = errors.New("token expired")
+	ErrTokenInvalid = errors.New("token invalid")
 )
 
 func NewJWTService(secret string) JWTService {
@@ -53,8 +54,12 @@ func (j *jwtService) GetUserIDAndExpiresAt(tokenString string) (domain.UserID, i
 
 		return []byte(j.secret), nil
 	})
-	if e, ok := err.(*jwt.ValidationError); ok && e.Errors&jwt.ValidationErrorExpired != 0 {
-		return 0, 0, ErrTokenExpired
+	if e, ok := err.(*jwt.ValidationError); ok {
+		if e.Errors&jwt.ValidationErrorExpired != 0 {
+			return 0, 0, ErrTokenExpired
+		} else {
+			return 0, 0, ErrTokenInvalid
+		}
 	} else if err != nil {
 		return 0, 0, err
 	}

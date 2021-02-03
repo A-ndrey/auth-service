@@ -16,7 +16,7 @@ func RouteAPI(group *gin.RouterGroup, service service.UserService) {
 	apiGroup := group.Group("/api/v1")
 
 	apiGroup.POST("/password/check", checkPassword)
-	apiGroup.PUT("/refresh", refreshToken(service))
+	apiGroup.POST("/refresh", refreshToken(service))
 
 	srvcDefGroup := apiGroup.Use(middleware.ServiceDefiner)
 
@@ -99,6 +99,9 @@ func userInfo(userService service.UserService) gin.HandlerFunc {
 		email, expiresAt, err := userService.GetUserInfo(serviceQuery, accessToken)
 		if errors.Is(err, service.ErrTokenExpired) {
 			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
+			return
+		} else if errors.Is(err, service.ErrTokenInvalid) {
+			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
 			return
 		} else if errors.Is(err, service.ErrUserNotFound) {
 			ctx.JSON(http.StatusNotFound, model.ErrorResponse{Error: err.Error()})

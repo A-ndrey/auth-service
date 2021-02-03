@@ -40,12 +40,23 @@ func main() {
 
 	r.LoadHTMLFiles("front/index.html")
 
+	r.Use(func(ctx *gin.Context) {
+		ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Methods", "*")
+		ctx.Header("Access-Control-Allow-Headers", "*")
+
+		if ctx.Request.Method == "OPTIONS" {
+			ctx.AbortWithStatus(http.StatusNoContent)
+		}
+	})
+	r.OPTIONS("/*any")
+
 	handler.RouteHealth(&r.RouterGroup, healthService)
 	handler.RouteAPI(&r.RouterGroup, userService)
 	handler.RouteFront(&r.RouterGroup)
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":3100",
 		Handler: r,
 	}
 
