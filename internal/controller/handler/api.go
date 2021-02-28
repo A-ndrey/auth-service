@@ -34,12 +34,12 @@ func signUp(userService service.UserService) gin.HandlerFunc {
 		}
 
 		if user.Password == "" {
-			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: "miss password"})
+			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: "miss password", ErrorType: model.PasswordError})
 			return
 		}
 
 		if !userService.IsValidEmail(user.Email) {
-			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: "email is invalid"})
+			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: "email is invalid", ErrorType: model.EmailError})
 			return
 		}
 
@@ -48,11 +48,14 @@ func signUp(userService service.UserService) gin.HandlerFunc {
 
 		accessToken, refreshToken, err := userService.RegisterUser(serviceQuery, user.Email, user.Password, device)
 		if errors.Is(err, service.ErrExistsEmail) {
-			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error(), ErrorType: model.EmailError})
 			return
 		} else if err != nil {
 			log.Println(err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(
+				http.StatusInternalServerError,
+				model.ErrorResponse{Error: http.StatusText(http.StatusInternalServerError), ErrorType: model.CommonError},
+			)
 			return
 		}
 
@@ -73,11 +76,14 @@ func signIn(userService service.UserService) gin.HandlerFunc {
 
 		accessToken, refreshToken, err := userService.Login(serviceQuery, user.Email, user.Password, device)
 		if errors.Is(err, service.ErrIncorrectEmailOrPassword) {
-			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		} else if err != nil {
 			log.Println(err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(
+				http.StatusInternalServerError,
+				model.ErrorResponse{Error: http.StatusText(http.StatusInternalServerError), ErrorType: model.CommonError},
+			)
 			return
 		}
 
@@ -90,7 +96,7 @@ func userInfo(userService service.UserService) gin.HandlerFunc {
 		authHeader := ctx.GetHeader("Authorization")
 		accessToken, err := getToken(authHeader)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		}
 
@@ -98,17 +104,20 @@ func userInfo(userService service.UserService) gin.HandlerFunc {
 
 		email, expiresAt, err := userService.GetUserInfo(serviceQuery, accessToken)
 		if errors.Is(err, service.ErrTokenExpired) {
-			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		} else if errors.Is(err, service.ErrTokenInvalid) {
-			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		} else if errors.Is(err, service.ErrUserNotFound) {
-			ctx.JSON(http.StatusNotFound, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusNotFound, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		} else if err != nil {
 			log.Println(err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(
+				http.StatusInternalServerError,
+				model.ErrorResponse{Error: http.StatusText(http.StatusInternalServerError), ErrorType: model.CommonError},
+			)
 			return
 		}
 
@@ -126,11 +135,14 @@ func refreshToken(userService service.UserService) gin.HandlerFunc {
 
 		accessToken, refreshToken, err := userService.RefreshTokens(refreshRequest.RefreshToken)
 		if errors.Is(err, service.ErrWrongRefreshToken) {
-			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error()})
+			ctx.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: err.Error(), ErrorType: model.CommonError})
 			return
 		} else if err != nil {
 			log.Println(err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(
+				http.StatusInternalServerError,
+				model.ErrorResponse{Error: http.StatusText(http.StatusInternalServerError), ErrorType: model.CommonError},
+			)
 			return
 		}
 

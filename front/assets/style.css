@@ -1,3 +1,124 @@
-html, body {
-    height: 100%;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #212121;
+}
+
+.form {
+    position: relative;
+    width: 350px;
+    padding: 40px 40px 60px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: -5px -5px 10px rgba(255, 255, 255, 0.05),
+                5px 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.form h2 {
+    color: #c7c7c7;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+}
+
+.form h3 {
+    margin-top: 30px;
+    color: #c7c7c7;
+    font-weight: 400;
+    text-transform: capitalize;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.form .input {
+    text-align: left;
+    margin-top: 10px;
+}
+
+.form .input .inputBox {
+    margin-top: 15px;
+}
+
+.form .input .inputBox label {
+    display: block;
+    color: #868686;
+    margin-bottom: 5px;
+    font-size: 18px;
+}
+
+.form .input .inputBox input {
+    width: 100%;
+    height: 50px;
+    background: #212121;
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    padding: 5px 15px;
+    color: #14ffec;
+    font-size: 18px;
+    box-shadow: inset -2px -2px 6px rgba(255, 255, 255, 0.1),
+                inset 2px 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.form .input .inputBox input::placeholder {
+    color: #555;
+}
+
+.form .input .inputBox input[type=submit] {
+    margin-top: 20px;
+    box-shadow: -2px -2px 6px rgba(255, 255, 255, 0.1),
+                2px 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.form .input .inputBox input[type=submit]:active {
+    color: #0d7377;
+    margin-top: 20px;
+    box-shadow: inset -2px -2px 6px rgba(255, 255, 255, 0.1),
+                inset 2px 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.switch-form {
+    margin-top: 30px;
+    color: #555;
+}
+
+.switch-form span.link {
+    color: #0d7377;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+p.message {
+    margin-top: 5px;
+    min-height: 14px;
+    font-size: 14px;
+}
+
+p.status-ok {
+    color: darkgreen;
+}
+
+p.status-warn {
+    color: darkorange;
+}
+
+p.status-error {
+    color: darkred;
+}
+
+.component-fade-enter-active, .component-fade-leave-active {
+    transition: opacity .1s ease;
+}
+.component-fade-enter, .component-fade-leave-to {
+    opacity: 0;
 }
