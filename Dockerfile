@@ -5,4 +5,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /out/auth-service
 
 FROM scratch
 COPY --from=build /out/auth-service /
+COPY front /front
 CMD ["/auth-service"]
